@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-0639ad1e0eb5609d/out/build/cmake_install.cmake",
+		"/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-0639ad1e0eb5609d/out/build/raylib/cmake_install.cmake",
+		"/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-0639ad1e0eb5609d/out/build/raylib/external/glfw/cmake_install.cmake",
+		"/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-0639ad1e0eb5609d/out/build/raylib/external/glfw/src/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
