@@ -1,7 +1,0 @@
-/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-d2a07aeaaff76e6a/out/lib/libraylib.a
-/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-d2a07aeaaff76e6a/out/include/raylib.h
-/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-d2a07aeaaff76e6a/out/include/rlgl.h
-/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-d2a07aeaaff76e6a/out/include/raymath.h
-/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-d2a07aeaaff76e6a/out/lib/pkgconfig/raylib.pc
-/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-d2a07aeaaff76e6a/out/lib/cmake/raylib/raylib-config-version.cmake
-/home/eggsbenedict/projects/rust/boids/target/debug/build/raylib-sys-d2a07aeaaff76e6a/out/lib/cmake/raylib/raylib-config.cmake
