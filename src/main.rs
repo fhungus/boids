@@ -1,9 +1,18 @@
 #![warn(clippy::pedantic)]
-use raylib::prelude::*;
-use boids::types::{Vector2, Boid};
+use std::thread::{self};
 
-static BOIDS_COUNT: u32 = 2500;
-static TURN_FACTOR: f32 = 0.5;
+use raylib::prelude::*;
+use boids::types::{Vector2, Boid, BoidDiff};
+
+
+static THREADS: u8 = 8;
+
+// some day i shall un-hardcode this
+static WIDTH: i32 = 1000;
+static HEIGHT: i32 = 1000;
+
+static BOIDS_COUNT: u32 = 500; // per thread!
+static TURN_FACTOR: f32 = 0.1;
 static VISUAL_RANGE: f32 = 40.0;
 static PROTECTED_RANGE: f32 = 8.0;
 static CENTERING_FACTOR: f32 = 0.0005;
@@ -14,73 +23,146 @@ static MIN_SPEED: f32 = 3.0;
 static MAX_SPEED: f32 = 6.0;
 
 fn main() {
-    let (rl, thread) = raylib::init()
-        .size(640,480)
-        .title("Boids")
+    let (mut rl, thread) = raylib::init()
+        .size(WIDTH,HEIGHT)
+        .title("Boids: Cores & Cliffs Update")
         .build();
 
-    main_loop(rl, thread);
-}
+    let mut boids_vec = create_boids();
 
-fn create_boids() -> Vec<Boid> {
-    let mut boids: Vec<Boid> = Vec::new();
-    let mut i = 0; 
-    loop {
-        if i >= BOIDS_COUNT { break; }
-
-        // good enough
-        let x: f32 = (rand::random::<f32>() % 100.0) + 200.0;
-        let y: f32 = (rand::random::<f32>() % 100.0) + 200.0;
-
-        boids.push(Boid {
-            position: Vector2::new(x, y),
-            velocity: Vector2::new(0.0, 0.0)
-        });
-
-        i += 1;
-    }
-    return boids;
-}
-
-fn main_loop(mut rl: RaylibHandle, thread: RaylibThread) {
-    let mut boids = create_boids();
-
-    // wont update automatically so if i make the window resizeable ill have to fix this
-    let width = rl.get_screen_width();
-    let height = rl.get_screen_height();
+    let mut last_len = BOIDS_COUNT;
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&thread);
         d.clear_background(Color::WHITE);
 
-        // iterate through every boid and do boid stuff with it
-        let mut i = 0;
-        loop {
-            if i >= boids.len() { break }
+        let mut next_boids_vec = Vec::new();
+        for boids in boids_vec.iter() {
+            let mut boids_diff = Vec::<Vec<BoidDiff>>::new();
 
-            let mut boid_velocity;
-            {
-                let boid = boids.get(i).expect("uh oh");
-                boid_velocity = boid.velocity;
-                boid_velocity = boid_velocity + bounds(boid, width, height);
-                boid_velocity = boid_velocity + movement(&boids, boid);
-
-                let speed = boid_velocity.get_magnitude();
-                if speed > MAX_SPEED {
-                   boid_velocity = boid_velocity.divide_by_f32(speed).multiply_by_f32(MAX_SPEED);
-                } else if speed < MIN_SPEED {
-                    boid_velocity = boid_velocity.divide_by_f32(speed).multiply_by_f32(MIN_SPEED);
-                }
+            let mut threads = Vec::new();
+            for other_boids in boids_vec.iter() {
+                let boids_clone = boids.clone();
+                let other_boids_clone = other_boids.clone();
+                threads.push(thread::spawn(|| return calc_thread(boids_clone, other_boids_clone)));
             }
 
-            let boid_mut = boids.get_mut(i).expect("WHAT?!");
-            boid_mut.velocity = boid_velocity;
-            boid_mut.position = boid_mut.position + boid_velocity;
+            for thread in threads {
+                boids_diff.push(thread.join().unwrap());
+            }
 
-            draw_boid(&mut d, boid_mut);
-
-            i += 1;
+            let nextboids = add_boid_diffs(boids, boids_diff);
+            next_boids_vec.push(nextboids);
         }
+
+        // we missin
+        let first = next_boids_vec.first().unwrap();
+        if last_len != first.len() as u32 {
+            let difference = last_len - first.len() as u32;
+            println!("OH SHIT! We lost Jimmy... {difference}");
+            last_len = first.len() as u32;
+        }
+
+        draw_boids(&mut d, &next_boids_vec);
+        boids_vec = next_boids_vec;
     }
+}
+
+fn create_boids() -> Vec<Vec<Boid>> {
+    let mut boids_array: Vec<Vec<Boid>> = Vec::new();
+    
+    let mut i = 0;
+    loop {
+        if i >= THREADS { break; }
+
+        let mut boids: Vec<Boid> = Vec::new();
+
+        let mut j = 0;
+        loop {
+            if j >= BOIDS_COUNT { break; }
+
+            // good enough
+            let x: f32 = (rand::random::<f32>() % 100.0) + 200.0;
+            let y: f32 = (rand::random::<f32>() % 100.0) + 200.0;
+
+            boids.push(Boid {
+                position: Vector2::new(x, y),
+                velocity: Vector2::new(0.0, 0.0)
+            });
+
+            j += 1;
+        }
+
+        boids_array.push(boids);
+        i += 1;
+    }
+
+    return boids_array;
+}
+
+fn add_boid_diffs(base: &Vec<Boid>, diffs_vec: Vec<Vec<BoidDiff>>) -> Vec<Boid> {
+    let mut results = Vec::new();
+
+    let first = diffs_vec.get(0).expect("erm...");
+    let mut i = 0;
+    loop {
+        if i >= first.len() as i64 {break;}
+
+        // unneccesary redundancy?
+        let base_boid_wrapped = base.get(i as usize);
+        if base_boid_wrapped.is_none() {
+            break
+        }
+
+        let mut base_boid = base_boid_wrapped.unwrap().clone(); 
+
+        for diffs in diffs_vec.iter() {
+            let diff = diffs.get(i as usize).unwrap();
+            base_boid.velocity = base_boid.velocity + diff.velocity;
+        } 
+
+        // putting the speed test here because its the easiest place to do so
+        let speed = base_boid.velocity.get_magnitude();
+        if speed > MAX_SPEED {
+            base_boid.velocity = base_boid.velocity.divide_by_f32(speed).multiply_by_f32(MAX_SPEED);
+        } else if speed < MIN_SPEED {
+            base_boid.velocity = base_boid.velocity.divide_by_f32(speed).multiply_by_f32(MIN_SPEED);
+        }
+
+        // and this is also the easiest place to move them...
+        base_boid.position = base_boid.position + base_boid.velocity;
+
+        results.push(base_boid);
+
+        i += 1;
+    }
+
+    return results;
+}
+
+fn calc_thread(my_boids: Vec<Boid>, other_boids: Vec<Boid>) -> Vec<BoidDiff> {
+    let mut result: Vec<BoidDiff> = Vec::new();
+
+   let mut i: usize = 0;
+   loop {
+       if i as i64 >= my_boids.len() as i64 { break }
+
+       let mut boid_velocity_diff;
+       {
+           let boid = my_boids.get(i).expect("uh oh");
+           boid_velocity_diff = Vector2::new(0.0,0.0);
+           boid_velocity_diff = boid_velocity_diff + bounds(boid, WIDTH, HEIGHT);
+           boid_velocity_diff = boid_velocity_diff + movement(&other_boids, boid);
+           
+           let boid_diff = BoidDiff {
+                velocity: boid_velocity_diff,
+           };
+           result.push(boid_diff);
+       }
+
+       i += 1;
+   }
+
+   return result;
 }
 
 fn bounds(boid: &Boid, w: i32, h: i32) -> Vector2 {
@@ -136,6 +218,10 @@ fn movement(boids: &Vec<Boid>, boid: &Boid) -> Vector2 {
 }
 
 // uh, what does <'_> mean?!?!
-fn draw_boid(d: &mut RaylibDrawHandle<'_>, boid: &mut Boid) {
-    d.draw_circle(boid.position.x as i32, boid.position.y as i32, 1.0, Color::BLACK);
+fn draw_boids(d: &mut RaylibDrawHandle<'_>, boids_vec: &Vec<Vec<Boid>>) {
+    for boids in boids_vec.iter() {
+        for boid in boids.iter() {
+            d.draw_circle(boid.position.x as i32, boid.position.y as i32, 1.5, Color::BLACK);
+        }
+    }
 }

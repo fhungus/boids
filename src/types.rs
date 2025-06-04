@@ -1,6 +1,7 @@
-// raylib already implements vector2's but i already wrote this so
 use std::ops;
+use raylib::math::Vector2 as Raylib_Vector2;
 
+// raylib already implements vector2's but i already wrote this so
 #[derive(Debug, Copy, Clone)]
 pub struct Vector2 {
     pub x: f32,
@@ -21,6 +22,10 @@ impl Vector2 {
 
     pub fn in_range(self, other: Vector2, range: f32) -> bool {
         return (self - other).get_magnitude() <= range
+    }
+
+    pub fn vector2_to_raylib(&self) -> Raylib_Vector2 {
+        return Raylib_Vector2::new(self.x, self.y);
     }
 
     pub fn multiply_by_f32(self, rhs: f32) -> Vector2 {
@@ -77,8 +82,12 @@ impl ops::Div<Vector2> for Vector2 {
     }
 }
 
-
+#[derive(Clone, Copy)]
 pub struct Boid {
     pub position: Vector2,
     pub velocity: Vector2,
+}
+
+pub struct BoidDiff {
+    pub velocity: Vector2
 }
