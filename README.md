@@ -5,8 +5,8 @@ This is a boid simulation in Rust that took me 3 days to write (because i am slo
 
 ## Features
 - [x] Boids move 🤯
+- [x] Horrifically implemented Multithreading
 - [ ] Respect for Deltatime
 - [ ] Parameters at all editable
-- [ ] Multithreading
 - [ ] Group Bias
 - [ ] Interactivity
